@@ -31,4 +31,8 @@
         android:orderInCategory="62"
         app:iconTint="?attr/colorControlNormal"
         app:showAsAction="ifRoom" />
+    <item android:id="@+id/menu_reconnect_file"
+        android:title="@string/menu_reconnect_file"
+        android:orderInCategory="63"
+        app:showAsAction="never" />
 </menu>

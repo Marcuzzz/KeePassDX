@@ -20,7 +20,7 @@ android {
         applicationId = "com.marcuzzz.keepassdx"
         minSdk = 19
         targetSdk = 36
-        versionCode = 45500
+        versionCode = 45501
         versionName = "4.5.5"
         versionNameSuffix = "-mo"
         multiDexEnabled = true
