@@ -136,4 +136,38 @@ class RemoteDatabaseFileTest {
         assertFalse(RemoteDatabaseFile.isBackup(context, uri))
         assertNull(RemoteDatabaseFile.lastBackup(context, Uri.parse("content://other/doc")))
     }
+
+    @Test
+    fun Should_NotTouchFile_When_ProviderStillServesPreviousContent() {
+        val written = createFile("written.tmp", "new content")
+        // Asynchronous upload, the provider still serves the previous version
+        val remote = createFile("db.kdbx", "previous version")
+
+        RemoteDatabaseFile.verifyWrite(context, Uri.fromFile(remote), written)
+
+        assertEquals("previous version", remote.readText())
+    }
+
+    @Test
+    fun Should_NotFail_When_ReadBackUnavailable() {
+        val written = createFile("written.tmp", "new content")
+        val missing = Uri.fromFile(File(workDirectory, "pending.kdbx"))
+
+        RemoteDatabaseFile.verifyWrite(context, missing, written)
+    }
+
+    @Test
+    fun Should_MoveBackups_When_FileReconnected() {
+        val backupDirectory = File(workDirectory, "backup")
+        RemoteDatabaseFile.backup(backupDirectory, "oldUri", createFile("v1", "version 1"), now = 1L)
+        RemoteDatabaseFile.backup(backupDirectory, "oldUri", createFile("v2", "version 2"), now = 2L)
+
+        RemoteDatabaseFile.moveBackups(backupDirectory, "oldUri", "newUri")
+
+        assertTrue(RemoteDatabaseFile.listBackups(backupDirectory, "oldUri").isEmpty())
+        assertEquals(
+            listOf("version 2", "version 1"),
+            RemoteDatabaseFile.listBackups(backupDirectory, "newUri").map { it.readText() }
+        )
+    }
 }

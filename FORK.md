@@ -23,14 +23,20 @@ Setting *App settings → Safe cloud sync* (enabled by default):
 - **Backups**: the last 3 distinct remote versions are kept in the app's private storage.
   If a database can't be loaded, the app offers to open the last backup read-only.
 - The "database changed" dialog has *Merge* and *Reload* buttons.
+- *Reconnect file* (unlock screen menu, and in the error dialog) selects the file again and
+  moves the key file, hardware key, biometric unlock and backups to the new location.
 
 ## Recommended desktop setup (KeePass + Google Drive for desktop)
 
 - In Google Drive for desktop, set the folder containing the database to **Available offline**
   (or use *Mirror files*), so KeePass never reads a placeholder or half-downloaded file.
-- In KeePass, enable *Tools → Options → Advanced → "Use file transactions for writing
-  databases"* and use **File → Synchronize** instead of a plain save when the phone may have
-  changed the file (KeePass merges both versions, like the app does).
+- In KeePass, **disable** *Tools → Options → Advanced → "Use file transactions for writing
+  databases"*. With transactions, KeePass writes a temp file and renames it over the database;
+  Google Drive for desktop can upload that as a *new* file, the phone then keeps pointing to the
+  previous (trashed) version. If that already happened, use *Reconnect file* in the app menu
+  on the unlock screen and select the database again (key file and biometric unlock are kept).
+- Use **File → Synchronize** instead of a plain save when the phone may have changed the file
+  (KeePass merges both versions, like the app does).
 - Wait for Drive to finish syncing (tray icon) before editing on the other device.
 
 ## Release

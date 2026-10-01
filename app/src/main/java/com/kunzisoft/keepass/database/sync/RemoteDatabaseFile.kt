@@ -86,18 +86,35 @@ object RemoteDatabaseFile {
     }
 
     /**
-     * Read back [uri] and compare it with the [writtenFile],
-     * if the content is different, rewrite it with an explicit truncation.
+     * Read back [uri] and compare it with the [writtenFile].
+     * Only the known provider bug (previous longer content not truncated) is repaired,
+     * a provider that uploads asynchronously (Google Drive) may still serve the previous
+     * content or nothing at all for a while, the written content must not be touched then.
      */
     @Throws(StorageVerificationDatabaseException::class, StorageProviderDatabaseException::class)
     fun verifyWrite(context: Context, uri: Uri, writtenFile: File) {
-        val expected = sha256(writtenFile)
-        if (readBackMatches(context, uri, expected))
+        val snapshot = try {
+            download(context, uri, retryDelaysMs = longArrayOf(RETRY_DELAYS_MS[0]))
+        } catch (e: StorageProviderDatabaseException) {
+            Log.w(TAG, "Unable to read back $uri, upload probably pending", e)
             return
-        Log.w(TAG, "Written content mismatch for $uri, rewrite with truncation")
+        }
+        val trailingBytes = try {
+            if (snapshot.sha256.contentEquals(sha256(writtenFile)))
+                return
+            snapshot.file.length() > writtenFile.length()
+                    && sha256(snapshot.file, writtenFile.length()).contentEquals(sha256(writtenFile))
+        } finally {
+            snapshot.delete()
+        }
+        if (!trailingBytes) {
+            Log.w(TAG, "Read back of $uri not yet updated, upload probably pending")
+            return
+        }
+        Log.w(TAG, "Trailing bytes after the written content of $uri, rewrite with truncation")
         rewriteTruncated(context, uri, writtenFile)
         Thread.sleep(RETRY_DELAYS_MS[0])
-        if (!readBackMatches(context, uri, expected))
+        if (!readBackMatches(context, uri, sha256(writtenFile)))
             throw StorageVerificationDatabaseException()
     }
 
@@ -111,31 +128,33 @@ object RemoteDatabaseFile {
     }
 
     private fun rewriteTruncated(context: Context, uri: Uri, writtenFile: File) {
+        if (uri.withContentScheme() && rewriteWithDescriptor(context, uri, writtenFile))
+            return
         try {
-            if (uri.withContentScheme()) {
-                val descriptor = try {
-                    context.contentResolver.openFileDescriptor(uri, "rwt")
-                } catch (e: Exception) {
-                    Log.w(TAG, "File descriptor not supported for $uri", e)
-                    null
-                }
-                if (descriptor != null) {
-                    descriptor.use { pfd ->
-                        FileOutputStream(pfd.fileDescriptor).use { output ->
-                            output.channel.truncate(0)
-                            writtenFile.inputStream().use { it.copyTo(output) }
-                            output.channel.truncate(writtenFile.length())
-                            output.fd.sync()
-                        }
-                    }
-                    return
-                }
-            }
             context.contentResolver.getUriOutputStream(uri)?.use { output ->
                 writtenFile.inputStream().use { it.copyTo(output) }
             } ?: throw IOException("No output stream for $uri")
         } catch (e: IOException) {
             throw StorageProviderDatabaseException(e)
+        }
+    }
+
+    private fun rewriteWithDescriptor(context: Context, uri: Uri, writtenFile: File): Boolean {
+        return try {
+            val descriptor = context.contentResolver.openFileDescriptor(uri, "rwt")
+                ?: return false
+            descriptor.use { pfd ->
+                FileOutputStream(pfd.fileDescriptor).use { output ->
+                    output.channel.truncate(0)
+                    writtenFile.inputStream().use { it.copyTo(output) }
+                    output.channel.truncate(writtenFile.length())
+                    output.fd.sync()
+                }
+            }
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "File descriptor truncation not supported for $uri", e)
+            false
         }
     }
 
@@ -157,6 +176,26 @@ object RemoteDatabaseFile {
     fun isBackup(context: Context, uri: Uri?): Boolean {
         val path = uri?.takeIf { it.scheme == "file" }?.path ?: return false
         return path.startsWith(backupDirectory(context).absolutePath)
+    }
+
+    /**
+     * Link the backups of [oldUri] to [newUri], when the file was selected again
+     */
+    fun moveBackups(context: Context, oldUri: Uri, newUri: Uri) {
+        try {
+            moveBackups(backupDirectory(context), oldUri.toString(), newUri.toString())
+        } catch (e: Exception) {
+            Log.e(TAG, "Unable to move backups of $oldUri", e)
+        }
+    }
+
+    internal fun moveBackups(directory: File, oldKey: String, newKey: String) {
+        val oldPrefix = backupPrefix(oldKey)
+        val newPrefix = backupPrefix(newKey)
+        listBackups(directory, oldKey).forEach { backup ->
+            backup.renameTo(File(directory, newPrefix + backup.name.removePrefix(oldPrefix)))
+        }
+        listBackups(directory, newKey).drop(BACKUPS_TO_KEEP).forEach { it.delete() }
     }
 
     private fun backupDirectory(context: Context): File {
@@ -194,6 +233,21 @@ object RemoteDatabaseFile {
         return file.inputStream().use { input ->
             input.copyToWithDigest(null)
         }
+    }
+
+    private fun sha256(file: File, length: Long): ByteArray {
+        val digest = MessageDigest.getInstance("SHA-256")
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        var remaining = length
+        file.inputStream().use { input ->
+            while (remaining > 0) {
+                val read = input.read(buffer, 0, minOf(buffer.size.toLong(), remaining).toInt())
+                if (read < 0) break
+                digest.update(buffer, 0, read)
+                remaining -= read
+            }
+        }
+        return digest.digest()
     }
 
     private fun sha256(bytes: ByteArray): ByteArray {

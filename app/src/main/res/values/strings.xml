@@ -623,11 +623,14 @@
     <string name="enable_auto_save_database_summary">Save the database after every important action (in \"Modifiable\" mode)</string>
     <string name="safe_cloud_sync_title">Safe cloud sync</string>
     <string name="safe_cloud_sync_summary">Before saving, merge changes made on another device, then verify the written file. Keeps a local backup of the last versions</string>
-    <string name="error_storage_provider">The storage provider could not deliver or accept the file. If it\'s on Google Drive, open the Drive app, make the file available offline and retry.</string>
+    <string name="error_storage_provider">The storage provider could not deliver or accept the file (%1$s). If it was saved on another device, use \"Reconnect file\" in the menu to select it again.</string>
     <string name="error_storage_verification">The saved file could not be verified, the storage provider may have corrupted it. Retry saving.</string>
     <string name="error_external_change_merge">The database was modified on another device and could not be merged automatically. Your changes were not written; reload the database.</string>
     <string name="external_changes_merged">Changes from another device were merged and saved</string>
     <string name="open_last_backup">Open last backup</string>
+    <string name="menu_reconnect_file">Reconnect file</string>
+    <string name="unreadable_file_title">Unable to read the database file</string>
+    <string name="reconnect_file_message">If the file was saved on another device, the storage provider may have replaced it by a new file. Select the file again to reconnect it, the key file and device unlock are kept.</string>
     <string name="open_last_backup_message">The database could not be loaded. A local backup from %1$s is available, open it read-only?</string>
     <string name="enable_keep_screen_on_title">Keep screen on</string>
     <string name="enable_keep_screen_on_summary">Keep the screen on when watching or editing an entry</string>

@@ -66,6 +66,7 @@ import com.kunzisoft.keepass.database.exception.FileNotFoundDatabaseException
 import com.kunzisoft.keepass.database.exception.HeaderHmacMismatchException
 import com.kunzisoft.keepass.database.exception.SignatureDatabaseException
 import com.kunzisoft.keepass.database.exception.StorageProviderDatabaseException
+import com.kunzisoft.keepass.database.sync.DatabaseFileReconnect
 import com.kunzisoft.keepass.database.sync.RemoteDatabaseFile
 import com.kunzisoft.keepass.education.PasswordActivityEducation
 import com.kunzisoft.keepass.hardware.HardwareKey
@@ -124,6 +125,7 @@ class MainCredentialActivity : DatabaseModeActivity() {
 
     private val mPasswordActivityEducation = PasswordActivityEducation(this)
     private var mExternalFileHelper: ExternalFileHelper? = null
+    private var mReconnectFileHelper: ExternalFileHelper? = null
 
     override fun manageDatabaseInfo(): Boolean  = false
 
@@ -156,6 +158,13 @@ class MainCredentialActivity : DatabaseModeActivity() {
             }
         }
         mainCredentialView.setOpenKeyfileClickListener(mExternalFileHelper)
+        // Select again a database file replaced by another device
+        mReconnectFileHelper = ExternalFileHelper(this)
+        mReconnectFileHelper?.buildOpenDocument { uri ->
+            if (uri != null) {
+                reconnectDatabaseFile(uri)
+            }
+        }
 
         // If is a view intent
         getUriFromIntent(intent)
@@ -406,7 +415,7 @@ class MainCredentialActivity : DatabaseModeActivity() {
                         is CorruptedDatabaseException,
                         is SignatureDatabaseException -> {
                             result.data?.let { resultData ->
-                                showOpenLastBackupDialog(
+                                showUnreadableFileDialog(
                                     databaseUri = resultData.getParcelableCompat(DATABASE_URI_KEY),
                                     mainCredential = resultData.getParcelableCompat(MAIN_CREDENTIAL_KEY) ?: MainCredential(),
                                     allowUserVerification = resultData.getBoolean(USER_VERIFICATION_KEY)
@@ -421,31 +430,81 @@ class MainCredentialActivity : DatabaseModeActivity() {
     }
 
     /**
-     * Propose to open the local backup in read-only mode if the remote file is unreadable
+     * Propose to select the file again or to open the local backup in read-only mode
+     * if the remote file is unreadable
      */
-    private fun showOpenLastBackupDialog(
+    private fun showUnreadableFileDialog(
         databaseUri: Uri?,
         mainCredential: MainCredential,
         allowUserVerification: Boolean
     ) {
         if (databaseUri == null || RemoteDatabaseFile.isBackup(this, databaseUri))
             return
-        val backup = RemoteDatabaseFile.lastBackup(this, databaseUri) ?: return
-        val backupDate = DateFormat.getDateTimeInstance().format(Date(backup.lastModified()))
+        val canReconnect = isReconnectAllowed()
+        val backup = RemoteDatabaseFile.lastBackup(this, databaseUri)
+        if (!canReconnect && backup == null)
+            return
+        val message = StringBuilder()
+        if (canReconnect) {
+            message.append(getString(R.string.reconnect_file_message))
+        }
+        if (backup != null) {
+            val backupDate = DateFormat.getDateTimeInstance().format(Date(backup.lastModified()))
+            if (message.isNotEmpty()) message.append("\n\n")
+            message.append(getString(R.string.open_last_backup_message, backupDate))
+        }
         AlertDialog.Builder(this)
-            .setTitle(R.string.open_last_backup)
-            .setMessage(getString(R.string.open_last_backup_message, backupDate))
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                mDatabaseViewModel.loadDatabase(
-                    databaseUri = Uri.fromFile(backup),
-                    mainCredential = mainCredential,
-                    readOnly = true,
-                    allowUserVerification = allowUserVerification,
-                    cipherEncryptDatabase = null
-                )
+            .setTitle(R.string.unreadable_file_title)
+            .setMessage(message)
+            .apply {
+                if (canReconnect) {
+                    setPositiveButton(R.string.menu_reconnect_file) { _, _ ->
+                        mReconnectFileHelper?.openDocument()
+                    }
+                }
+                if (backup != null) {
+                    setNeutralButton(R.string.open_last_backup) { _, _ ->
+                        mDatabaseViewModel.loadDatabase(
+                            databaseUri = Uri.fromFile(backup),
+                            mainCredential = mainCredential,
+                            readOnly = true,
+                            allowUserVerification = allowUserVerification,
+                            cipherEncryptDatabase = null
+                        )
+                    }
+                }
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+    }
+
+    private fun isReconnectAllowed(): Boolean {
+        val databaseUri = mMainCredentialViewModel.databaseFileUri
+        return mSpecialMode == SpecialMode.DEFAULT
+                && databaseUri != null
+                && !RemoteDatabaseFile.isBackup(this, databaseUri)
+    }
+
+    /**
+     * Replace the current database URI by [newUri] and keep the linked credentials settings
+     */
+    private fun reconnectDatabaseFile(newUri: Uri) {
+        val oldUri = mMainCredentialViewModel.databaseFileUri ?: return
+        if (oldUri == newUri)
+            return
+        DatabaseFileReconnect.reconnect(this, oldUri, newUri) { databaseFile ->
+            // Restart the screen to reload the history and device unlock of the new URI
+            startActivity(Intent(intent).apply {
+                action = null
+                data = null
+                putExtra(KEY_FILENAME, newUri)
+                removeExtra(KEY_KEYFILE)
+                removeExtra(KEY_HARDWARE_KEY)
+                databaseFile?.keyFileUri?.let { putExtra(KEY_KEYFILE, it) }
+                databaseFile?.hardwareKey?.let { putExtra(KEY_HARDWARE_KEY, it.toString()) }
+            })
+            finish()
+        }
     }
 
     private fun getUriFromIntent(intent: Intent?) {
@@ -576,6 +635,10 @@ class MainCredentialActivity : DatabaseModeActivity() {
             )
         } else {
             menu.removeItem(R.id.menu_open_file_user_verification_mode_key)
+        }
+
+        if (!isReconnectAllowed()) {
+            menu.removeItem(R.id.menu_reconnect_file)
         }
 
         if (mSpecialMode == SpecialMode.DEFAULT) {
@@ -723,6 +786,7 @@ class MainCredentialActivity : DatabaseModeActivity() {
                     )
                 }
             }
+            R.id.menu_reconnect_file -> mReconnectFileHelper?.openDocument()
             else -> MenuUtil.onDefaultMenuOptionsItemSelected(this, item)
         }
 

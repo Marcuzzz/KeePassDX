@@ -89,7 +89,12 @@ fun LocalizedException.getLocalizedMessage(resources: Resources): String? =
         is CopyEntryDatabaseException -> resources.getString(R.string.error_copy_entry_here)
         is CopyGroupDatabaseException -> resources.getString(R.string.error_copy_group_here)
         is MissingParentDatabaseException -> resources.getString(R.string.error_missing_parent)
-        is StorageProviderDatabaseException -> resources.getString(R.string.error_storage_provider)
+        is StorageProviderDatabaseException -> resources.getString(
+            R.string.error_storage_provider,
+            generateSequence(cause) { it.cause }.lastOrNull()?.let { rootCause ->
+                rootCause.message ?: rootCause.javaClass.simpleName
+            } ?: ""
+        )
         is StorageVerificationDatabaseException -> resources.getString(R.string.error_storage_verification)
         is ExternalChangeDatabaseException -> resources.getString(R.string.error_external_change_merge)
         is DatabaseInputException -> resources.getString(R.string.error_load_database)
