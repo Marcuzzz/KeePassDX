@@ -26,7 +26,7 @@ import com.kunzisoft.keepass.tasks.ActionRunnable
 import com.kunzisoft.keepass.tasks.ProgressTaskUpdater
 import com.kunzisoft.keepass.utils.AppUtil.getLimits
 import com.kunzisoft.keepass.utils.getBinaryDir
-import com.kunzisoft.keepass.utils.getUriInputStream
+import com.kunzisoft.keepass.database.sync.RemoteDatabaseFile
 
 class ReloadDatabaseRunnable(
     private val context: Context,
@@ -40,15 +40,20 @@ class ReloadDatabaseRunnable(
     override fun onActionRun() {
         try {
             mDatabase.apply {
-                val databaseStream = context.contentResolver.getUriInputStream(fileUri)
-                    ?: throw UnknownDatabaseLocationException()
-                // Clear before database load
-                clearIndexesAndBinaries(binaryDir)
-                reloadData(
-                    databaseStream = databaseStream,
-                    limits = context.getLimits(),
-                    progressTaskUpdater = progressTaskUpdater
-                )
+                val databaseUri = fileUri ?: throw UnknownDatabaseLocationException()
+                val snapshot = RemoteDatabaseFile.download(context, databaseUri)
+                try {
+                    // Clear before database load
+                    clearIndexesAndBinaries(binaryDir)
+                    reloadData(
+                        databaseStream = snapshot.inputStream(),
+                        limits = context.getLimits(),
+                        progressTaskUpdater = progressTaskUpdater
+                    )
+                    syncedContentHash = snapshot.sha256
+                } finally {
+                    snapshot.delete()
+                }
                 wasReloaded = true
                 indicateUpToDateData()
             }

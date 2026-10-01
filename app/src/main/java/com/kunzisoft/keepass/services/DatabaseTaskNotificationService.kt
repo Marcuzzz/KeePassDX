@@ -45,6 +45,7 @@ import com.kunzisoft.keepass.database.action.MergeDatabaseRunnable
 import com.kunzisoft.keepass.database.action.ReloadDatabaseRunnable
 import com.kunzisoft.keepass.database.action.RemoveUnlinkedDataDatabaseRunnable
 import com.kunzisoft.keepass.database.action.SaveDatabaseRunnable
+import com.kunzisoft.keepass.database.sync.RemoteDatabaseFile
 import com.kunzisoft.keepass.database.action.UpdateCompressionBinariesDatabaseRunnable
 import com.kunzisoft.keepass.database.action.UpdateKeyDerivationDatabaseRunnable
 import com.kunzisoft.keepass.database.action.history.DeleteEntryHistoryDatabaseRunnable
@@ -788,7 +789,8 @@ open class DatabaseTaskNotificationService : LockNotificationService(), Progress
                     eraseCredentials(databaseUri)
                     if (result.isSuccess) {
                         // Add database to recent files
-                        if (PreferencesUtil.rememberDatabaseLocations(applicationContext)) {
+                        if (PreferencesUtil.rememberDatabaseLocations(applicationContext)
+                            && !RemoteDatabaseFile.isBackup(applicationContext, databaseUri)) {
                             FileDatabaseHistoryAction.getInstance(applicationContext)
                                 .addOrUpdateDatabaseUri(
                                     databaseUri,

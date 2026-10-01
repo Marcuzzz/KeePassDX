@@ -1,0 +1,106 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ master ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Decode release keystore (if provided)
+        id: keystore
+        env:
+          SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$SIGNING_KEYSTORE_B64" ]; then
+            echo "$SIGNING_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "path=$RUNNER_TEMP/release.jks" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "::error::SIGNING_KEYSTORE_B64 secret missing; refusing to publish an unsigned release."
+            exit 1
+          fi
+
+      - name: Unit tests
+        run: ./gradlew :database:testDebugUnitTest --stacktrace
+
+      - name: Build libre release APK
+        env:
+          SIGNING_KEYSTORE_PATH: ${{ steps.keystore.outputs.path }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: ./gradlew :app:assembleLibreRelease --stacktrace
+
+      - name: Collect APK
+        run: |
+          mkdir -p dist
+          OUT=app/build/outputs/apk/libre/release
+          if [ -f "$OUT/app-libre-release.apk" ]; then
+            cp "$OUT/app-libre-release.apk" dist/KeePassDX-MO-release.apk
+          else
+            cp "$OUT/app-libre-release-unsigned.apk" dist/KeePassDX-MO-release-unsigned.apk
+          fi
+          ls -la dist
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KeePassDX-MO-apk
+          path: dist/*.apk
+          if-no-files-found: error
+
+      - name: Assemble Pages site
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          mkdir -p _site
+          cp deploy/index.html _site/
+
+      - uses: actions/upload-pages-artifact@v3
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          path: _site
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/KeePassDX-MO-release.apk
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          make_latest: 'true'
+
+  deploy-pages:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

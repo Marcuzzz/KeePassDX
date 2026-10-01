@@ -93,3 +93,8 @@ releases/*
 
 # Local scripts
 scripts/*
+
+# Release keystore
+/keystore/
+*.jks
+*.keystore

@@ -28,7 +28,7 @@ import com.kunzisoft.keepass.database.exception.UnknownDatabaseLocationException
 import com.kunzisoft.keepass.hardware.HardwareKey
 import com.kunzisoft.keepass.tasks.ProgressTaskUpdater
 import com.kunzisoft.keepass.utils.AppUtil.getLimits
-import com.kunzisoft.keepass.utils.getUriInputStream
+import com.kunzisoft.keepass.database.sync.RemoteDatabaseFile
 
 class MergeDatabaseRunnable(
     context: Context,
@@ -53,19 +53,26 @@ class MergeDatabaseRunnable(
     override fun onActionRun() {
         try {
             val contentResolver = context.contentResolver
-            val mergeStream = contentResolver.getUriInputStream(
-                mDatabaseToMergeUri ?: database.fileUri
-            ) ?: throw UnknownDatabaseLocationException()
-            mergeMasterCredential = mDatabaseToMergeMainCredential?.toMasterCredential(contentResolver)
-            database.apply {
-                mergeData(
-                    databaseToMergeStream = mergeStream,
-                    databaseToMergeMasterCredential = mergeMasterCredential,
-                    databaseToMergeChallengeResponseRetriever = mDatabaseToMergeChallengeResponseRetriever,
-                    limits = context.getLimits(),
-                    progressTaskUpdater = progressTaskUpdater
-                )
-                wasReloaded = true
+            val mergeUri = mDatabaseToMergeUri ?: database.fileUri
+                ?: throw UnknownDatabaseLocationException()
+            val mergeSnapshot = RemoteDatabaseFile.download(context, mergeUri)
+            try {
+                mergeMasterCredential = mDatabaseToMergeMainCredential?.toMasterCredential(contentResolver)
+                database.apply {
+                    mergeData(
+                        databaseToMergeStream = mergeSnapshot.inputStream(),
+                        databaseToMergeMasterCredential = mergeMasterCredential,
+                        databaseToMergeChallengeResponseRetriever = mDatabaseToMergeChallengeResponseRetriever,
+                        limits = context.getLimits(),
+                        progressTaskUpdater = progressTaskUpdater
+                    )
+                    // The current file content is now included
+                    if (mergeUri == fileUri)
+                        syncedContentHash = mergeSnapshot.sha256
+                    wasReloaded = true
+                }
+            } finally {
+                mergeSnapshot.delete()
             }
         } catch (e: Exception) {
             setError(e)

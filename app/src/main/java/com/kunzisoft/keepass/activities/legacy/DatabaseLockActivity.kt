@@ -40,6 +40,7 @@ import com.kunzisoft.keepass.activities.dialogs.DeleteNodesDialogFragment
 import com.kunzisoft.keepass.credentialprovider.EntrySelectionHelper.removeModes
 import com.kunzisoft.keepass.credentialprovider.SpecialMode
 import com.kunzisoft.keepass.database.ContextualDatabase
+import com.kunzisoft.keepass.database.action.SaveDatabaseRunnable
 import com.kunzisoft.keepass.database.MainCredential
 import com.kunzisoft.keepass.database.element.EntryId
 import com.kunzisoft.keepass.database.element.GroupId
@@ -197,6 +198,11 @@ abstract class DatabaseLockActivity : DatabaseModeActivity() {
             }
             else -> {
                 if (result.isSuccess
+                    && result.data?.getBoolean(SaveDatabaseRunnable.EXTERNAL_CHANGES_MERGED_KEY, false) == true) {
+                    // Changes from another device were merged before saving
+                    reloadActivity()
+                    showDatabaseAction(R.string.external_changes_merged)
+                } else if (result.isSuccess
                     && result.data?.getBoolean(DatabaseTaskNotificationService.SAVE_DATABASE_KEY, false) == true) {
                     showDatabaseAction(R.string.save_success)
                 }

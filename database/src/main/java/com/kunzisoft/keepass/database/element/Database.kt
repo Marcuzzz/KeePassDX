@@ -788,7 +788,8 @@ open class Database {
         databaseOutputStream: () -> OutputStream?,
         masterCredential: MasterCredential?,
         challengeResponseRetriever: (HardwareKey, ByteArray?) -> ByteArray,
-        limits: Limits
+        limits: Limits,
+        onWritten: ((cacheFile: File) -> Unit)? = null
     ) {
         try {
             kdfEngine?.checkLimits(limits)
@@ -834,6 +835,8 @@ open class Database {
                     }
                 }
             }
+            // Let the caller check the written content while the cache is still available
+            onWritten?.invoke(cacheFile)
         } catch (e: Exception) {
             Log.e(TAG, "Unable to save database", e)
             if (e is DatabaseException)

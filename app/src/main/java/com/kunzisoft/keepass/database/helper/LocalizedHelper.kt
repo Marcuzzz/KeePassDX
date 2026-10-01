@@ -31,6 +31,7 @@ import com.kunzisoft.keepass.database.exception.DatabaseInputException
 import com.kunzisoft.keepass.database.exception.DatabaseOutputException
 import com.kunzisoft.keepass.database.exception.DuplicateUuidDatabaseException
 import com.kunzisoft.keepass.database.exception.EmptyKeyDatabaseException
+import com.kunzisoft.keepass.database.exception.ExternalChangeDatabaseException
 import com.kunzisoft.keepass.database.exception.FileNotFoundDatabaseException
 import com.kunzisoft.keepass.database.exception.HardwareKeyDatabaseException
 import com.kunzisoft.keepass.database.exception.InvalidAlgorithmDatabaseException
@@ -47,6 +48,8 @@ import com.kunzisoft.keepass.database.exception.NoMemoryDatabaseException
 import com.kunzisoft.keepass.database.exception.RegisterInReadOnlyDatabaseException
 import com.kunzisoft.keepass.database.exception.HeaderHmacMismatchException
 import com.kunzisoft.keepass.database.exception.SignatureDatabaseException
+import com.kunzisoft.keepass.database.exception.StorageProviderDatabaseException
+import com.kunzisoft.keepass.database.exception.StorageVerificationDatabaseException
 import com.kunzisoft.keepass.database.exception.UnknownDatabaseLocationException
 import com.kunzisoft.keepass.database.exception.VersionDatabaseException
 import com.kunzisoft.keepass.database.exception.XMLMalformedDatabaseException
@@ -86,6 +89,9 @@ fun LocalizedException.getLocalizedMessage(resources: Resources): String? =
         is CopyEntryDatabaseException -> resources.getString(R.string.error_copy_entry_here)
         is CopyGroupDatabaseException -> resources.getString(R.string.error_copy_group_here)
         is MissingParentDatabaseException -> resources.getString(R.string.error_missing_parent)
+        is StorageProviderDatabaseException -> resources.getString(R.string.error_storage_provider)
+        is StorageVerificationDatabaseException -> resources.getString(R.string.error_storage_verification)
+        is ExternalChangeDatabaseException -> resources.getString(R.string.error_external_change_merge)
         is DatabaseInputException -> resources.getString(R.string.error_load_database)
         is DatabaseOutputException -> resources.getString(R.string.error_save_database)
         else -> localizedMessage

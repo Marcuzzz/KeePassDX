@@ -61,7 +61,12 @@ import com.kunzisoft.keepass.database.ContextualDatabase
 import com.kunzisoft.keepass.database.MainCredential
 import com.kunzisoft.keepass.database.element.Database.Companion.DEFAULT_PASSWORD_ENCODING
 import com.kunzisoft.keepass.database.exception.DuplicateUuidDatabaseException
+import com.kunzisoft.keepass.database.exception.CorruptedDatabaseException
 import com.kunzisoft.keepass.database.exception.FileNotFoundDatabaseException
+import com.kunzisoft.keepass.database.exception.HeaderHmacMismatchException
+import com.kunzisoft.keepass.database.exception.SignatureDatabaseException
+import com.kunzisoft.keepass.database.exception.StorageProviderDatabaseException
+import com.kunzisoft.keepass.database.sync.RemoteDatabaseFile
 import com.kunzisoft.keepass.education.PasswordActivityEducation
 import com.kunzisoft.keepass.hardware.HardwareKey
 import com.kunzisoft.keepass.model.CipherDecryptDatabase
@@ -93,6 +98,8 @@ import kotlinx.coroutines.launch
 import java.io.FileNotFoundException
 import java.nio.ByteBuffer
 import java.nio.CharBuffer
+import java.text.DateFormat
+import java.util.Date
 
 
 class MainCredentialActivity : DatabaseModeActivity() {
@@ -394,11 +401,51 @@ class MainCredentialActivity : DatabaseModeActivity() {
                             // Remove this default database inaccessible
                             mMainCredentialViewModel.removeDefaultDatabase()
                         }
+                        is StorageProviderDatabaseException,
+                        is HeaderHmacMismatchException,
+                        is CorruptedDatabaseException,
+                        is SignatureDatabaseException -> {
+                            result.data?.let { resultData ->
+                                showOpenLastBackupDialog(
+                                    databaseUri = resultData.getParcelableCompat(DATABASE_URI_KEY),
+                                    mainCredential = resultData.getParcelableCompat(MAIN_CREDENTIAL_KEY) ?: MainCredential(),
+                                    allowUserVerification = resultData.getBoolean(USER_VERIFICATION_KEY)
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
         result.clear()
+    }
+
+    /**
+     * Propose to open the local backup in read-only mode if the remote file is unreadable
+     */
+    private fun showOpenLastBackupDialog(
+        databaseUri: Uri?,
+        mainCredential: MainCredential,
+        allowUserVerification: Boolean
+    ) {
+        if (databaseUri == null || RemoteDatabaseFile.isBackup(this, databaseUri))
+            return
+        val backup = RemoteDatabaseFile.lastBackup(this, databaseUri) ?: return
+        val backupDate = DateFormat.getDateTimeInstance().format(Date(backup.lastModified()))
+        AlertDialog.Builder(this)
+            .setTitle(R.string.open_last_backup)
+            .setMessage(getString(R.string.open_last_backup_message, backupDate))
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                mDatabaseViewModel.loadDatabase(
+                    databaseUri = Uri.fromFile(backup),
+                    mainCredential = mainCredential,
+                    readOnly = true,
+                    allowUserVerification = allowUserVerification,
+                    cipherEncryptDatabase = null
+                )
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun getUriFromIntent(intent: Intent?) {

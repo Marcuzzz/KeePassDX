@@ -50,6 +50,9 @@ class ContextualDatabase: DatabaseInfo() {
     var snapFileDatabaseInfo: SnapFileDatabaseInfo? = null
         private set
 
+    // Hash of the last file content loaded, merged or saved, to detect external modifications
+    var syncedContentHash: ByteArray? = null
+
     // To defined if unsaved data still remaining
     private val mDataModifiedSinceLastLoading = MutableStateFlow(false)
     val dataModifiedSinceLastLoadingFlow = mDataModifiedSinceLastLoading.asStateFlow()
@@ -169,6 +172,7 @@ class ContextualDatabase: DatabaseInfo() {
     override fun clearAndClose(filesDirectory: File?) {
         super.clearAndClose(filesDirectory)
         this.fileUri = null
+        this.syncedContentHash = null
     }
 
     companion object : SingletonHolder<ContextualDatabase>(::ContextualDatabase) {

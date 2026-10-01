@@ -16,11 +16,13 @@ android {
     val gmsPackage = "com.google.android.gms"
 
     defaultConfig {
-        applicationId = "com.kunzisoft.keepass"
+        // Fork: own applicationId so it installs side-by-side with the official KeePassDX
+        applicationId = "com.marcuzzz.keepassdx"
         minSdk = 19
         targetSdk = 36
         versionCode = 45500
         versionName = "4.5.5"
+        versionNameSuffix = "-mo"
         multiDexEnabled = true
 
         testApplicationId = "com.kunzisoft.keepass.tests"
@@ -33,9 +35,26 @@ android {
         manifestPlaceholders["googlePlayServicesPackage"] = gmsPackage
     }
 
+    signingConfigs {
+        create("release") {
+            val storeFilePath = System.getenv("SIGNING_KEYSTORE_PATH")
+            if (!storeFilePath.isNullOrBlank()) {
+                storeFile = file(storeFilePath)
+                storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+                keyAlias = System.getenv("SIGNING_KEY_ALIAS")
+                keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            // No debug-key fallback: without a keystore the release APK stays unsigned
+            val releaseSigning = signingConfigs.getByName("release")
+            if (releaseSigning.storeFile != null) {
+                signingConfig = releaseSigning
+            }
         }
     }
 

@@ -51,6 +51,9 @@ object AESTransformer {
             Log.e(AESTransformer::class.java.simpleName, "Unable to perform native AES key transformation", exception)
             // Fall back on the android crypto implementation
             transformKeyInJVM(seed, key, rounds)
+        } catch (error: UnsatisfiedLinkError) {
+            Log.e(AESTransformer::class.java.simpleName, "Native AES library unavailable", error)
+            transformKeyInJVM(seed, key, rounds)
         }
     }
 
