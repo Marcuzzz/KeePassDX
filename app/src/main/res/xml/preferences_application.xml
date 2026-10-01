@@ -38,6 +38,11 @@
             android:summary="@string/enable_auto_save_database_summary"
             android:defaultValue="@bool/enable_auto_save_database_default"/>
         <SwitchPreferenceCompat
+            android:key="@string/safe_cloud_sync_key"
+            android:title="@string/safe_cloud_sync_title"
+            android:summary="@string/safe_cloud_sync_summary"
+            android:defaultValue="@bool/safe_cloud_sync_default"/>
+        <SwitchPreferenceCompat
             android:key="@string/auto_focus_search_key"
             android:title="@string/auto_focus_search_title"
             android:summary="@string/auto_focus_search_summary"

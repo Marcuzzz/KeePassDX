@@ -1,5 +1,8 @@
 # Android KeePassDX
 
+> **KeePassDX MO** — personal fork with safer cloud sync (Google Drive, Nextcloud...).
+> See [FORK.md](FORK.md) for the differences, install link and release process.
+
 <img alt="KeePassDX Icon" src="https://raw.githubusercontent.com/Kunzisoft/KeePassDX/master/art/icon.png"> **Lightweight password safe and manager for Android**, KeePassDX allows editing encrypted data in a single file in KeePass format and fill in the forms in a secure way.
 
 <img alt="KeePassDX Screenshot" src="https://raw.githubusercontent.com/Kunzisoft/KeePassDX/master/art/screen.jpg" width="220">

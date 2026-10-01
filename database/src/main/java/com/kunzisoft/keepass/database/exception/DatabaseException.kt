@@ -123,6 +123,21 @@ class XMLMalformedDatabaseException : DatabaseInputException {
 
 class MergeDatabaseKDBException : DatabaseInputException()
 
+/**
+ * The storage provider (e.g. Google Drive) failed to deliver or accept the file content
+ */
+class StorageProviderDatabaseException(throwable: Throwable) : DatabaseException(throwable)
+
+/**
+ * The content read back after a save does not match the content written
+ */
+class StorageVerificationDatabaseException : DatabaseOutputException("Written content mismatch")
+
+/**
+ * The file was modified elsewhere and the changes could not be merged before saving
+ */
+class ExternalChangeDatabaseException(e: Exception) : DatabaseOutputException(e)
+
 class MoveEntryDatabaseException : DatabaseException()
 
 class MoveGroupDatabaseException : DatabaseException()

@@ -27,6 +27,7 @@ import android.text.format.Formatter
 import androidx.appcompat.app.AlertDialog
 import com.kunzisoft.keepass.R
 import com.kunzisoft.keepass.model.SnapFileDatabaseInfo
+import com.kunzisoft.keepass.settings.PreferencesUtil
 import com.kunzisoft.keepass.utils.getParcelableCompat
 import java.text.DateFormat
 import java.util.Date
@@ -64,6 +65,20 @@ class DatabaseChangedDialogFragment : DatabaseDialogFragment() {
                 builder.setMessage(stringBuilder)
                 builder.setPositiveButton(android.R.string.ok) { _, _ ->
                     mDatabaseViewModel.onDatabaseChangeValidated()
+                }
+                if (newSnapFileDatabaseInfo.exists) {
+                    builder.setNeutralButton(R.string.menu_reload_database) { _, _ ->
+                        mDatabaseViewModel.onDatabaseChangeValidated()
+                        mDatabaseViewModel.reloadDatabase(fixDuplicateUuid = false)
+                    }
+                    if (!readOnlyDatabase) {
+                        builder.setNegativeButton(R.string.menu_merge_database) { _, _ ->
+                            mDatabaseViewModel.onDatabaseChangeValidated()
+                            mDatabaseViewModel.mergeDatabase(
+                                save = PreferencesUtil.isAutoSaveDatabaseEnabled(activity)
+                            )
+                        }
+                    }
                 }
                 return builder.create()
             }
