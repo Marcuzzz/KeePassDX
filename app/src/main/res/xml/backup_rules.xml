@@ -22,10 +22,14 @@
         <include domain="sharedpref" path="."/>
         <include domain="database" path="."/>
         <exclude domain="database" path="com.kunzisoft.keepass.database"/>
+        <!-- Fork: keepass-server device token -->
+        <exclude domain="sharedpref" path="keepass_server_account.xml"/>
     </cloud-backup>
     <device-transfer>
         <include domain="sharedpref" path="."/>
         <include domain="database" path="."/>
         <exclude domain="database" path="com.kunzisoft.keepass.database"/>
+        <!-- Fork: keepass-server device token -->
+        <exclude domain="sharedpref" path="keepass_server_account.xml"/>
     </device-transfer>
 </data-extraction-rules>

@@ -31,6 +31,9 @@ import com.kunzisoft.keepass.database.exception.HeaderHmacMismatchException
 import com.kunzisoft.keepass.database.exception.SignatureDatabaseException
 import com.kunzisoft.keepass.database.exception.XMLMalformedDatabaseException
 import com.kunzisoft.keepass.database.sync.RemoteDatabaseFile
+import com.kunzisoft.keepass.database.sync.server.KpsDatabaseSync
+import com.kunzisoft.keepass.database.sync.server.KpsOpenDatabase
+import com.kunzisoft.keepass.database.sync.server.KpsVault
 import com.kunzisoft.keepass.hardware.HardwareKey
 import com.kunzisoft.keepass.tasks.ActionRunnable
 import com.kunzisoft.keepass.tasks.ProgressTaskUpdater
@@ -58,6 +61,9 @@ class LoadDatabaseRunnable(
         try {
             val contentResolver = context.contentResolver
             masterCredential = mMainCredential.toMasterCredential(contentResolver)
+            // Database from a keepass-server: refresh the local copy first (falls back to it offline)
+            val serverVault = KpsVault.fromUri(context, mDatabaseUri)
+            val pull = serverVault?.let { KpsDatabaseSync.beforeLoad(context, it) }
             var attempt = 0
             while (true) {
                 // Copy the remote file first, the provider may fail or serve a partial file
@@ -78,12 +84,37 @@ class LoadDatabaseRunnable(
                     snapshot.delete()
                 }
             }
+            if (serverVault != null && pull != null) {
+                syncServerVault(serverVault, pull)
+            }
         } catch (e: Exception) {
             setError(e)
         }
 
         if (!result.isSuccess) {
             mDatabase.clearAndClose(binaryDir)
+        }
+    }
+
+    /** Uploads changes made offline (merging newer server changes into the loaded database). */
+    private fun syncServerVault(vault: KpsVault, pull: KpsDatabaseSync.Result) {
+        if (!vault.state.dirty || mReadonly || pull.outcome != KpsDatabaseSync.Outcome.UP_TO_DATE) {
+            KpsDatabaseSync.notify(context, pull)
+            return
+        }
+        try {
+            val push = KpsDatabaseSync.push(context, vault, KpsOpenDatabase(
+                context = context,
+                database = mDatabase,
+                vault = vault,
+                mergeChallengeResponseRetriever = mChallengeResponseRetriever,
+                writeChallengeResponseRetriever = mChallengeResponseRetriever,
+                progressTaskUpdater = progressTaskUpdater
+            ))
+            KpsDatabaseSync.notify(context, push)
+        } catch (e: Exception) {
+            // The database is loaded from the local copy; the upload is retried on the next save
+            Log.w(TAG, "Unable to upload local changes", e)
         }
     }
 

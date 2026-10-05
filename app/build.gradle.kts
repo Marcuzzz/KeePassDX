@@ -20,7 +20,7 @@ android {
         applicationId = "com.marcuzzz.keepassdx"
         minSdk = 19
         targetSdk = 36
-        versionCode = 45501
+        versionCode = 45502
         versionName = "4.5.5"
         versionNameSuffix = "-mo"
         multiDexEnabled = true
@@ -48,6 +48,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Fork: test builds install next to the release app (different signing key)
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
         release {
             isMinifyEnabled = false
             // No debug-key fallback: without a keystore the release APK stays unsigned
