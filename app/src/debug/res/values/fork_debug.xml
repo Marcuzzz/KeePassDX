@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fork: tell the debug build apart from the installed release -->
+    <string name="app_name" translatable="false">KeePassDX MO debug</string>
+</resources>

@@ -30,6 +30,10 @@ import com.kunzisoft.keepass.database.exception.DatabaseException
 import com.kunzisoft.keepass.database.exception.ExternalChangeDatabaseException
 import com.kunzisoft.keepass.database.exception.StorageProviderDatabaseException
 import com.kunzisoft.keepass.database.sync.RemoteDatabaseFile
+import com.kunzisoft.keepass.database.sync.server.KpsDatabaseSync
+import com.kunzisoft.keepass.database.sync.server.KpsOpenDatabase
+import com.kunzisoft.keepass.database.sync.server.KpsVault
+import com.kunzisoft.keepass.R
 import com.kunzisoft.keepass.hardware.HardwareKey
 import com.kunzisoft.keepass.settings.PreferencesUtil
 import com.kunzisoft.keepass.tasks.ActionRunnable
@@ -71,6 +75,12 @@ open class SaveDatabaseRunnable(
             try {
                 val contentResolver = context.contentResolver
                 val targetUri = databaseCopyUri ?: database.fileUri
+                // Database from a keepass-server: saved to its local copy, then uploaded
+                val serverVault = if (databaseCopyUri == null) KpsVault.fromUri(context, targetUri) else null
+                if (serverVault != null) {
+                    saveServerVault(serverVault, contentResolver)
+                    return
+                }
                 val safeSync = targetUri != null
                         && databaseCopyUri == null
                         && PreferencesUtil.isSafeCloudSyncEnabled(context)
@@ -110,6 +120,44 @@ open class SaveDatabaseRunnable(
         } else if (dataModified) {
             database.indicateNotSavedData()
         }
+    }
+
+    /**
+     * Save to the local copy of a keepass-server vault and upload it. The upload merges newer
+     * server changes into the open database (and writes it again) when another device was first.
+     */
+    @Throws(DatabaseException::class)
+    private fun saveServerVault(vault: KpsVault, contentResolver: android.content.ContentResolver) {
+        if (vault.state.needsReopen) {
+            setError(context.getString(R.string.kps_error_needs_reopen))
+            return
+        }
+        mMasterCredential = mainCredential?.toMasterCredential(contentResolver)
+        KpsOpenDatabase.writeDatabase(context, database, vault, mMasterCredential, cachingRetriever)
+        database.indicateUpToDateData()
+        val sync = try {
+            KpsDatabaseSync.push(context, vault, KpsOpenDatabase(
+                context = context,
+                database = database,
+                vault = vault,
+                mergeChallengeResponseRetriever = challengeResponseRetriever,
+                writeChallengeResponseRetriever = cachingRetriever,
+                progressTaskUpdater = progressTaskUpdater
+            ))
+        } catch (e: java.io.IOException) {
+            // Saved on the device; the upload is retried on the next load or save
+            Log.e(TAG, "Unable to upload to keepass-server", e)
+            setError(e.message ?: context.getString(R.string.kps_sync_offline))
+            return
+        }
+        when (sync.outcome) {
+            KpsDatabaseSync.Outcome.MERGED -> result.data = (result.data ?: Bundle()).apply {
+                putBoolean(EXTERNAL_CHANGES_MERGED_KEY, true)
+            }
+            KpsDatabaseSync.Outcome.KEY_CHANGED -> setError(context.getString(R.string.kps_sync_key_changed))
+            else -> {}
+        }
+        KpsDatabaseSync.notify(context, sync)
     }
 
     /**

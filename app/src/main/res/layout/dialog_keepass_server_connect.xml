@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fork: sign in to a keepass-server -->
+<androidx.core.widget.NestedScrollView
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	android:layout_width="match_parent"
+	android:layout_height="wrap_content">
+	<LinearLayout
+		android:orientation="vertical"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:padding="@dimen/default_margin">
+		<com.google.android.material.textfield.TextInputLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:hint="@string/kps_server_url"
+			app:placeholderText="@string/kps_server_url_hint">
+			<com.google.android.material.textfield.TextInputEditText
+				android:id="@+id/kps_server_url"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:inputType="textUri"
+				android:importantForAutofill="no"
+				android:maxLines="1" />
+		</com.google.android.material.textfield.TextInputLayout>
+		<com.google.android.material.textfield.TextInputLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:hint="@string/kps_username">
+			<com.google.android.material.textfield.TextInputEditText
+				android:id="@+id/kps_username"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:inputType="text"
+				android:autofillHints="username"
+				android:maxLines="1" />
+		</com.google.android.material.textfield.TextInputLayout>
+		<com.google.android.material.textfield.TextInputLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:hint="@string/kps_password"
+			app:endIconMode="password_toggle">
+			<com.google.android.material.textfield.TextInputEditText
+				android:id="@+id/kps_password"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:inputType="textPassword"
+				android:autofillHints="password"
+				android:maxLines="1" />
+		</com.google.android.material.textfield.TextInputLayout>
+		<Button
+			android:id="@+id/kps_test_button"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="@dimen/default_margin"
+			style="@style/KeepassDXStyle.Button.Secondary"
+			android:text="@string/kps_test_connection" />
+		<ProgressBar
+			android:id="@+id/kps_progress"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:visibility="gone"
+			style="?android:attr/progressBarStyleSmall" />
+		<TextView
+			android:id="@+id/kps_status"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginTop="8dp"
+			android:accessibilityLiveRegion="polite"
+			android:textAppearance="?attr/textAppearanceBodyMedium"
+			android:visibility="gone" />
+	</LinearLayout>
+</androidx.core.widget.NestedScrollView>

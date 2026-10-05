@@ -26,6 +26,28 @@ Setting *App settings → Safe cloud sync* (enabled by default):
 - *Reconnect file* (unlock screen menu, and in the error dialog) selects the file again and
   moves the key file, hardware key, biometric unlock and backups to the new location.
 
+## KeePass Server
+
+Sync with a self-hosted keepass-server (separate project: multi-user, revisions, conflict copies).
+
+- Start screen → **KeePass Server**: server URL, username, account password, **Test connection**,
+  then pick a vault (downloaded the first time) or **New database** on the server.
+  **Create database** also asks *On this device / On KeePass Server*.
+- The database is kept as a local file in the app's private storage, so it opens offline and
+  recent files, key file and biometric unlock work as usual.
+- Loading downloads a newer server revision when there are no local changes. Saving uploads with
+  the base revision; if another device uploaded first, its version is merged in (per entry) and the
+  result is uploaded. When the server is unreachable, changes stay on the device and are uploaded
+  on the next load or save.
+- Unlock screen menu → **Work offline**: never contact the server for that database.
+- Master key changed on another device: the local changes are uploaded as a *conflict copy*
+  (also kept on the device) and saving is blocked until the database is unlocked again.
+- Only the device token is stored (never the account password); it is excluded from Android backups.
+- This adds the `INTERNET` permission, which upstream KeePassDX deliberately doesn't have. The
+  app only connects to the server URL you enter. Plain `http://` is allowed for testing on a
+  local network; use `https://` for anything else.
+- Debug builds (`assembleLibreDebug`) install next to the release app as *KeePassDX MO debug*.
+
 ## Recommended desktop setup (KeePass + Google Drive for desktop)
 
 - In Google Drive for desktop, set the folder containing the database to **Available offline**

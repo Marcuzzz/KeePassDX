@@ -31,6 +31,11 @@
         android:orderInCategory="62"
         app:iconTint="?attr/colorControlNormal"
         app:showAsAction="ifRoom" />
+    <item android:id="@+id/menu_kps_work_offline"
+        android:title="@string/kps_work_offline"
+        android:checkable="true"
+        android:orderInCategory="63"
+        app:showAsAction="never" />
     <item android:id="@+id/menu_reconnect_file"
         android:title="@string/menu_reconnect_file"
         android:orderInCategory="63"

@@ -32,6 +32,7 @@ import android.view.MenuItem
 import android.view.View
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.Toolbar
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.view.isVisible
@@ -54,6 +55,7 @@ import com.kunzisoft.keepass.credentialprovider.SpecialMode
 import com.kunzisoft.keepass.credentialprovider.TypeMode
 import com.kunzisoft.keepass.database.ContextualDatabase
 import com.kunzisoft.keepass.database.MainCredential
+import com.kunzisoft.keepass.database.sync.server.KpsServerDialogs
 import com.kunzisoft.keepass.education.FileDatabaseSelectActivityEducation
 import com.kunzisoft.keepass.hardware.HardwareKey
 import com.kunzisoft.keepass.model.RegisterInfo
@@ -80,6 +82,8 @@ class FileDatabaseSelectActivity : DatabaseModeActivity() {
     private lateinit var coordinatorLayout: CoordinatorLayout
     private var specialTitle: View? = null
     private var createDatabaseButtonView: View? = null
+    private var serverDatabaseButtonView: View? = null
+    private var mKpsServerDialogs: KpsServerDialogs? = null
     private var openDatabaseButtonView: View? = null
 
     private val databaseFilesViewModel: DatabaseFilesViewModel by viewModels()
@@ -124,7 +128,20 @@ class FileDatabaseSelectActivity : DatabaseModeActivity() {
 
         // Create database button
         createDatabaseButtonView = findViewById(R.id.create_database_button)
-        createDatabaseButtonView?.setOnClickListener { createNewFile() }
+        createDatabaseButtonView?.setOnClickListener { chooseCreateLocation() }
+
+        // KeePass Server: open or create a database stored on a keepass-server
+        mKpsServerDialogs = KpsServerDialogs(
+            activity = this,
+            openDatabase = { databaseUri -> launchMainCredentialActivityWithPath(databaseUri) },
+            createDatabase = { databaseUri ->
+                mDatabaseFileUri = databaseUri
+                SetMainCredentialDialogFragment.getInstance(true)
+                    .show(supportFragmentManager, "passwordDialog")
+            }
+        )
+        serverDatabaseButtonView = findViewById(R.id.server_database_button)
+        serverDatabaseButtonView?.setOnClickListener { mKpsServerDialogs?.show() }
 
         // Open database button
         mExternalFileHelper = ExternalFileHelper(this)
@@ -267,6 +284,21 @@ class FileDatabaseSelectActivity : DatabaseModeActivity() {
                 }
             }
         }
+    }
+
+    /**
+     * Ask where to create the new database: a file on the device or a KeePass Server
+     */
+    private fun chooseCreateLocation() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.kps_create_where)
+            .setItems(arrayOf(
+                getString(R.string.kps_create_on_device),
+                getString(R.string.kps_create_on_server)
+            )) { _, which ->
+                if (which == 0) createNewFile() else mKpsServerDialogs?.createOnServer()
+            }
+            .show()
     }
 
     /**

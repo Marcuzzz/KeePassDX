@@ -68,6 +68,7 @@ import com.kunzisoft.keepass.database.exception.SignatureDatabaseException
 import com.kunzisoft.keepass.database.exception.StorageProviderDatabaseException
 import com.kunzisoft.keepass.database.sync.DatabaseFileReconnect
 import com.kunzisoft.keepass.database.sync.RemoteDatabaseFile
+import com.kunzisoft.keepass.database.sync.server.KpsVault
 import com.kunzisoft.keepass.education.PasswordActivityEducation
 import com.kunzisoft.keepass.hardware.HardwareKey
 import com.kunzisoft.keepass.model.CipherDecryptDatabase
@@ -483,6 +484,22 @@ class MainCredentialActivity : DatabaseModeActivity() {
         return mSpecialMode == SpecialMode.DEFAULT
                 && databaseUri != null
                 && !RemoteDatabaseFile.isBackup(this, databaseUri)
+                && KpsVault.fromUri(this, databaseUri) == null
+    }
+
+    /**
+     * KeePass Server database: never contact the server (open and save the copy on this device)
+     */
+    private fun toggleWorkOffline(item: MenuItem) {
+        val vault = KpsVault.fromUri(this, mMainCredentialViewModel.databaseFileUri) ?: return
+        vault.state.workOffline = !vault.state.workOffline
+        vault.save()
+        item.isChecked = vault.state.workOffline
+        Snackbar.make(
+            coordinatorLayout,
+            if (vault.state.workOffline) R.string.kps_work_offline_enabled else R.string.kps_work_offline_disabled,
+            Snackbar.LENGTH_LONG
+        ).show()
     }
 
     /**
@@ -641,6 +658,13 @@ class MainCredentialActivity : DatabaseModeActivity() {
             menu.removeItem(R.id.menu_reconnect_file)
         }
 
+        val serverVault = KpsVault.fromUri(this, mMainCredentialViewModel.databaseFileUri)
+        if (serverVault != null) {
+            menu.findItem(R.id.menu_kps_work_offline)?.isChecked = serverVault.state.workOffline
+        } else {
+            menu.removeItem(R.id.menu_kps_work_offline)
+        }
+
         if (mSpecialMode == SpecialMode.DEFAULT) {
             MenuUtil.defaultMenuInflater(this, inflater, menu)
         }
@@ -787,6 +811,7 @@ class MainCredentialActivity : DatabaseModeActivity() {
                 }
             }
             R.id.menu_reconnect_file -> mReconnectFileHelper?.openDocument()
+            R.id.menu_kps_work_offline -> toggleWorkOffline(item)
             else -> MenuUtil.onDefaultMenuOptionsItemSelected(this, item)
         }
 

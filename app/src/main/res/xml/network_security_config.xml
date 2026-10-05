@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Fork: the only network use is the keepass-server URL entered by the user.
+    Plain HTTP is allowed so a server on the local network can be used for testing;
+    the connect dialog warns when HTTP is used outside a private network.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
